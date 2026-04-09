@@ -212,9 +212,8 @@
 
     async function fetchOil() {
       try {
-        const r = await fetch('https://query1.finance.yahoo.com/v8/finance/chart/BZ=F?interval=1d&range=2d', {
-          headers: { 'Accept': 'application/json' }
-        });
+        const url = 'https://query1.finance.yahoo.com/v8/finance/chart/BZ=F?interval=1d&range=2d';
+        const r = await fetch('https://corsproxy.io/?' + encodeURIComponent(url));
         const d = await r.json();
         const closes = d.chart.result[0].indicators.quote[0].close;
         const price = closes[closes.length - 1];
