@@ -151,6 +151,22 @@
       <div class="currency">USD / баррель</div>
       <div class="change neutral" id="oil-change">загрузка...</div>
     </div>
+
+    <div class="card loading" id="gold">
+      <div class="icon">🥇</div>
+      <div class="label">Золото / Доллар</div>
+      <div class="value" id="gold-val">—</div>
+      <div class="currency">XAU → USD / унция</div>
+      <div class="change neutral" id="gold-change">загрузка...</div>
+    </div>
+
+    <div class="card loading" id="silver">
+      <div class="icon">🥈</div>
+      <div class="label">Серебро / Доллар</div>
+      <div class="value" id="silver-val">—</div>
+      <div class="currency">XAG → USD / унция</div>
+      <div class="change neutral" id="silver-change">загрузка...</div>
+    </div>
   </div>
 
   <div class="status">
@@ -159,7 +175,7 @@
   </div>
 
   <script>
-    const prev = { usd: null, btc: null, oil: null };
+    const prev = { usd: null, btc: null, oil: null, gold: null, silver: null };
 
     function fmt(n, decimals = 2) {
       return n.toLocaleString('ru-RU', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
@@ -230,8 +246,21 @@
       }
     }
 
+    async function fetchMetal(id, symbol) {
+      try {
+        const proxy = 'https://corsproxy.io/?';
+        const url = `https://forex-data-feed.swissquote.com/public-quotes/bboquotes/instrument/${symbol}/USD`;
+        const r = await fetch(proxy + encodeURIComponent(url));
+        const d = await r.json();
+        const price = d[0].spreadProfilePrices[0].bid;
+        setCard(id, fmt(price, 2), 'Обновлено сейчас', 'neutral');
+      } catch (e) {
+        document.getElementById(id + '-change').textContent = 'ошибка загрузки';
+      }
+    }
+
     function updateAll() {
-      Promise.all([fetchUSD(), fetchBTC(), fetchOil()]).then(() => {
+      Promise.all([fetchUSD(), fetchBTC(), fetchOil(), fetchMetal('gold', 'XAU'), fetchMetal('silver', 'XAG')]).then(() => {
         const now = new Date().toLocaleTimeString('ru-RU');
         document.getElementById('status-text').textContent = `Последнее обновление: ${now} · следующее через 30 сек`;
       });
