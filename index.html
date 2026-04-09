@@ -198,9 +198,10 @@
 
     async function fetchBTC() {
       try {
+        const proxy = 'https://corsproxy.io/?';
         const [ticker, stats] = await Promise.all([
-          fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT').then(r => r.json()),
-          fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT').then(r => r.json())
+          fetch(proxy + encodeURIComponent('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT')).then(r => r.json()),
+          fetch(proxy + encodeURIComponent('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT')).then(r => r.json())
         ]);
         const price = parseFloat(ticker.price);
         const change = parseFloat(stats.priceChangePercent);
