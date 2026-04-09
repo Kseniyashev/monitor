@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Котировки в реальном времени</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -42,12 +43,16 @@
       padding: 32px 40px;
       min-width: 220px;
       text-align: center;
-      transition: border-color 0.3s;
+      transition: border-color 0.3s, transform 0.2s;
       position: relative;
       overflow: hidden;
+      cursor: pointer;
     }
 
-    .card:hover { border-color: #4a4a8a; }
+    .card:hover {
+      border-color: #5a5aaa;
+      transform: translateY(-3px);
+    }
 
     .card .label {
       font-size: 0.75rem;
@@ -74,6 +79,12 @@
       font-size: 0.85rem;
       margin-top: 10px;
       font-weight: 500;
+    }
+
+    .card .hint {
+      font-size: 0.7rem;
+      color: #333;
+      margin-top: 12px;
     }
 
     .up { color: #00e676; }
@@ -122,50 +133,121 @@
 
     .flash-up { animation: flash-green 1s ease-out; }
     .flash-down { animation: flash-red 1s ease-out; }
+
+    /* Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: #1a1a2e;
+      border: 1px solid #2a2a4a;
+      border-radius: 20px;
+      padding: 32px;
+      width: 100%;
+      max-width: 700px;
+      position: relative;
+    }
+
+    .modal-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .modal-subtitle {
+      font-size: 0.75rem;
+      color: #555;
+      margin-bottom: 24px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 20px;
+      right: 24px;
+      background: none;
+      border: none;
+      color: #555;
+      font-size: 1.5rem;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .modal-close:hover { color: #fff; }
+
+    .chart-container {
+      position: relative;
+      height: 300px;
+    }
+
+    .chart-loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 300px;
+      color: #444;
+      font-size: 0.9rem;
+    }
   </style>
 </head>
 <body>
   <h1>Котировки в реальном времени</h1>
 
   <div class="cards">
-    <div class="card loading" id="usd">
+    <div class="card loading" id="usd" onclick="openChart('usd')">
       <div class="icon">💵</div>
       <div class="label">Доллар / Рубль</div>
       <div class="value" id="usd-val">—</div>
       <div class="currency">USD → RUB</div>
       <div class="change neutral" id="usd-change">загрузка...</div>
+      <div class="hint">нажми для графика</div>
     </div>
 
-    <div class="card loading" id="btc">
+    <div class="card loading" id="btc" onclick="openChart('btc')">
       <div class="icon">₿</div>
       <div class="label">Биткоин / Доллар</div>
       <div class="value" id="btc-val">—</div>
       <div class="currency">BTC → USD</div>
       <div class="change neutral" id="btc-change">загрузка...</div>
+      <div class="hint">нажми для графика</div>
     </div>
 
-    <div class="card loading" id="oil">
+    <div class="card loading" id="oil" onclick="openChart('oil')">
       <div class="icon">🛢️</div>
       <div class="label">Нефть Brent</div>
       <div class="value" id="oil-val">—</div>
       <div class="currency">USD / баррель</div>
       <div class="change neutral" id="oil-change">загрузка...</div>
+      <div class="hint">нажми для графика</div>
     </div>
 
-    <div class="card loading" id="gold">
+    <div class="card loading" id="gold" onclick="openChart('gold')">
       <div class="icon">🥇</div>
       <div class="label">Золото / Доллар</div>
       <div class="value" id="gold-val">—</div>
       <div class="currency">XAU → USD / унция</div>
       <div class="change neutral" id="gold-change">загрузка...</div>
+      <div class="hint">нажми для графика</div>
     </div>
 
-    <div class="card loading" id="silver">
+    <div class="card loading" id="silver" onclick="openChart('silver')">
       <div class="icon">🥈</div>
       <div class="label">Серебро / Доллар</div>
       <div class="value" id="silver-val">—</div>
       <div class="currency">XAG → USD / унция</div>
       <div class="change neutral" id="silver-change">загрузка...</div>
+      <div class="hint">нажми для графика</div>
     </div>
   </div>
 
@@ -174,8 +256,31 @@
     <span id="status-text">Обновление...</span>
   </div>
 
+  <!-- Modal -->
+  <div class="modal-overlay" id="modal-overlay" onclick="closeChartOnOverlay(event)">
+    <div class="modal">
+      <button class="modal-close" onclick="closeChart()">×</button>
+      <div class="modal-title" id="modal-title"></div>
+      <div class="modal-subtitle">График за последние 30 дней</div>
+      <div class="chart-container">
+        <div class="chart-loading" id="chart-loading">Загрузка данных...</div>
+        <canvas id="myChart" style="display:none"></canvas>
+      </div>
+    </div>
+  </div>
+
   <script>
+    const proxy = 'https://corsproxy.io/?';
     const prev = { usd: null, btc: null, oil: null, gold: null, silver: null };
+    let chartInstance = null;
+
+    const META = {
+      usd:    { title: 'Доллар / Рубль', color: '#4fc3f7' },
+      btc:    { title: 'Биткоин / Доллар', color: '#ffd54f' },
+      oil:    { title: 'Нефть Brent', color: '#a5d6a7' },
+      gold:   { title: 'Золото / Доллар', color: '#ffca28' },
+      silver: { title: 'Серебро / Доллар', color: '#b0bec5' },
+    };
 
     function fmt(n, decimals = 2) {
       return n.toLocaleString('ru-RU', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
@@ -185,7 +290,6 @@
       const valEl = document.getElementById(id + '-val');
       const changeEl = document.getElementById(id + '-change');
       const card = document.getElementById(id);
-
       const oldVal = prev[id];
       if (oldVal !== null && oldVal !== value) {
         const cls = value > oldVal ? 'flash-up' : 'flash-down';
@@ -194,27 +298,24 @@
         card.classList.add(cls);
       }
       prev[id] = value;
-
       valEl.textContent = value;
       changeEl.textContent = changeText;
       changeEl.className = 'change ' + changeClass;
       card.classList.remove('loading');
     }
 
+    // --- Live prices ---
+
     async function fetchUSD() {
       try {
         const r = await fetch('https://open.er-api.com/v6/latest/USD');
         const d = await r.json();
-        const rate = d.rates.RUB;
-        setCard('usd', fmt(rate), 'Обновлено сейчас', 'neutral');
-      } catch (e) {
-        document.getElementById('usd-change').textContent = 'ошибка загрузки';
-      }
+        setCard('usd', fmt(d.rates.RUB), 'Обновлено сейчас', 'neutral');
+      } catch { document.getElementById('usd-change').textContent = 'ошибка загрузки'; }
     }
 
     async function fetchBTC() {
       try {
-        const proxy = 'https://corsproxy.io/?';
         const [ticker, stats] = await Promise.all([
           fetch(proxy + encodeURIComponent('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT')).then(r => r.json()),
           fetch(proxy + encodeURIComponent('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT')).then(r => r.json())
@@ -222,41 +323,32 @@
         const price = parseFloat(ticker.price);
         const change = parseFloat(stats.priceChangePercent);
         const sign = change >= 0 ? '+' : '';
-        const cls = change >= 0 ? 'up' : 'down';
-        setCard('btc', fmt(price, 0), `${sign}${fmt(change)}% за 24ч`, cls);
-      } catch (e) {
-        document.getElementById('btc-change').textContent = 'ошибка загрузки';
-      }
+        setCard('btc', fmt(price, 0), `${sign}${fmt(change)}% за 24ч`, change >= 0 ? 'up' : 'down');
+      } catch { document.getElementById('btc-change').textContent = 'ошибка загрузки'; }
     }
 
     async function fetchOil() {
       try {
         const url = 'https://query1.finance.yahoo.com/v8/finance/chart/BZ=F?interval=1d&range=2d';
-        const r = await fetch('https://corsproxy.io/?' + encodeURIComponent(url));
+        const r = await fetch(proxy + encodeURIComponent(url));
         const d = await r.json();
         const closes = d.chart.result[0].indicators.quote[0].close;
         const price = closes[closes.length - 1];
         const prev_price = closes[closes.length - 2];
         const change = ((price - prev_price) / prev_price) * 100;
         const sign = change >= 0 ? '+' : '';
-        const cls = change >= 0 ? 'up' : 'down';
-        setCard('oil', fmt(price), `${sign}${fmt(change)}% к вчера`, cls);
-      } catch (e) {
-        document.getElementById('oil-change').textContent = 'ошибка загрузки';
-      }
+        setCard('oil', fmt(price), `${sign}${fmt(change)}% к вчера`, change >= 0 ? 'up' : 'down');
+      } catch { document.getElementById('oil-change').textContent = 'ошибка загрузки'; }
     }
 
     async function fetchMetal(id, symbol) {
       try {
-        const proxy = 'https://corsproxy.io/?';
         const url = `https://forex-data-feed.swissquote.com/public-quotes/bboquotes/instrument/${symbol}/USD`;
         const r = await fetch(proxy + encodeURIComponent(url));
         const d = await r.json();
         const price = d[0].spreadProfilePrices[0].bid;
         setCard(id, fmt(price, 2), 'Обновлено сейчас', 'neutral');
-      } catch (e) {
-        document.getElementById(id + '-change').textContent = 'ошибка загрузки';
-      }
+      } catch { document.getElementById(id + '-change').textContent = 'ошибка загрузки'; }
     }
 
     function updateAll() {
@@ -265,6 +357,113 @@
         document.getElementById('status-text').textContent = `Последнее обновление: ${now} · следующее через 30 сек`;
       });
     }
+
+    // --- Chart history ---
+
+    async function fetchHistory(id) {
+      if (id === 'usd') {
+        const to = new Date().toISOString().slice(0, 10);
+        const from = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+        const r = await fetch(`https://api.frankfurter.app/${from}..${to}?from=USD&to=RUB`);
+        const d = await r.json();
+        const labels = Object.keys(d.rates).sort();
+        const values = labels.map(l => d.rates[l].RUB);
+        return { labels, values };
+      }
+
+      if (id === 'btc') {
+        const url = 'https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=30';
+        const r = await fetch(proxy + encodeURIComponent(url));
+        const d = await r.json();
+        const labels = d.map(k => new Date(k[0]).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }));
+        const values = d.map(k => parseFloat(k[4]));
+        return { labels, values };
+      }
+
+      const symbols = { oil: 'BZ=F', gold: 'GC=F', silver: 'SI=F' };
+      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbols[id]}?interval=1d&range=1mo`;
+      const r = await fetch(proxy + encodeURIComponent(url));
+      const d = await r.json();
+      const result = d.chart.result[0];
+      const timestamps = result.timestamp;
+      const closes = result.indicators.quote[0].close;
+      const labels = timestamps.map(t => new Date(t * 1000).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }));
+      const values = closes.map(v => v ? parseFloat(v.toFixed(2)) : null);
+      return { labels, values };
+    }
+
+    async function openChart(id) {
+      const meta = META[id];
+      document.getElementById('modal-title').textContent = meta.title;
+      document.getElementById('modal-overlay').classList.add('open');
+      document.getElementById('chart-loading').style.display = 'flex';
+      document.getElementById('myChart').style.display = 'none';
+
+      if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+
+      try {
+        const { labels, values } = await fetchHistory(id);
+        document.getElementById('chart-loading').style.display = 'none';
+        document.getElementById('myChart').style.display = 'block';
+
+        const ctx = document.getElementById('myChart').getContext('2d');
+        chartInstance = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{
+              data: values,
+              borderColor: meta.color,
+              backgroundColor: meta.color + '18',
+              borderWidth: 2,
+              pointRadius: 2,
+              pointHoverRadius: 5,
+              fill: true,
+              tension: 0.3,
+              spanGaps: true,
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: '#1a1a2e',
+                borderColor: '#2a2a4a',
+                borderWidth: 1,
+                titleColor: '#888',
+                bodyColor: '#fff',
+                bodyFont: { size: 14, weight: 'bold' },
+              }
+            },
+            scales: {
+              x: {
+                ticks: { color: '#555', maxTicksLimit: 8 },
+                grid: { color: '#1f1f35' }
+              },
+              y: {
+                ticks: { color: '#555' },
+                grid: { color: '#1f1f35' }
+              }
+            }
+          }
+        });
+      } catch (e) {
+        document.getElementById('chart-loading').textContent = 'Не удалось загрузить данные';
+      }
+    }
+
+    function closeChart() {
+      document.getElementById('modal-overlay').classList.remove('open');
+      if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+    }
+
+    function closeChartOnOverlay(e) {
+      if (e.target === document.getElementById('modal-overlay')) closeChart();
+    }
+
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeChart(); });
 
     updateAll();
     setInterval(updateAll, 30000);
