@@ -198,10 +198,12 @@
 
     async function fetchBTC() {
       try {
-        const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true');
-        const d = await r.json();
-        const price = d.bitcoin.usd;
-        const change = d.bitcoin.usd_24h_change;
+        const [ticker, stats] = await Promise.all([
+          fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT').then(r => r.json()),
+          fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT').then(r => r.json())
+        ]);
+        const price = parseFloat(ticker.price);
+        const change = parseFloat(stats.priceChangePercent);
         const sign = change >= 0 ? '+' : '';
         const cls = change >= 0 ? 'up' : 'down';
         setCard('btc', fmt(price, 0), `${sign}${fmt(change)}% за 24ч`, cls);
